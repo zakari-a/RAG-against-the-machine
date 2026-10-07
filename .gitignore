@@ -1,0 +1,19 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environment
+.venv/
+
+# Project data
+data/
+
+# Model weights
+*.pt
+*.pth
+*.bin
+*.ckpt
+*.safetensors

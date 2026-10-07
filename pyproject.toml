@@ -1,0 +1,31 @@
+[project]
+name = "rag-against-the-machine"
+version = "0.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic",
+    "fire",
+    "tqdm",
+]
+
+[dependency-groups]
+dev = [
+    "flake8",
+    "mypy",
+    "pytest",
+]
+
+[tool.uv]
+package = false
+
+[tool.flake8]
+exclude = [
+    ".venv",
+    ".mypy_cache",
+    "__pycache__",
+]
+
+[tool.mypy]
+exclude = "(^\\.venv/|^\\.mypy_cache/)"
