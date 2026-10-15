@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import List
 import uuid
 
@@ -42,3 +42,20 @@ class StudentSearchResults(BaseModel):
 class StudentSearchResultsAndAnswer(BaseModel):
     search_results: List[MinimalAnswer]
     k: int
+
+class Chunk(MinimalSource):
+    text: str
+
+    @model_validator(mode="after")
+    def check_order(self) -> "Chunk":
+        if not 0 <= self.first_character_index < self.last_character_index:
+            raise ValueError("invalid character range")
+        return self
+
+    def to_source(self) -> MinimalSource:
+        """Return the plain location, without the text."""
+        return MinimalSource(
+            file_path=self.file_path,
+            first_character_index=self.first_character_index,
+            last_character_index=self.last_character_index,
+        )

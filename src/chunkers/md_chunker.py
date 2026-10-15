@@ -1,36 +1,15 @@
-"""Markdown chunker built on regular expressions.
-
-Pipeline: fenced code ranges -> real headings -> sections -> size-capped
-chunks. Every offset is absolute (relative to the whole file) and the end
-offset is exclusive, so ``text[first:last]`` is exactly the chunk.
-"""
 import re
-import sys
 from typing import Tuple
+import ast
+import warnings
 
-from pydantic import BaseModel, Field, model_validator
+from src.models.models import Chunk
 
 Range = Tuple[int, int]
 
 HEADING_RE = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$).*?$", re.MULTILINE)
 FENCE_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})(.*)$", re.MULTILINE)
 BLANK_LINE_RE = re.compile(r"^[ \t]*\r?$", re.MULTILINE)
-
-
-class Chunk(BaseModel):
-    """A chunk's location (and text) inside the original file."""
-
-    file_path: str
-    first_character_index: int = Field(ge=0)
-    last_character_index: int
-    text: str
-
-    @model_validator(mode="after")
-    def check_order(self) -> "Chunk":
-        """Reject empty or inverted ranges."""
-        if self.last_character_index <= self.first_character_index:
-            raise ValueError("last index must be after first index")
-        return self
 
 
 def closes(opener: re.Match[str], candidate: re.Match[str]) -> bool:
@@ -123,36 +102,89 @@ def split_section(text: str, start: int, end: int, size: int) -> list[Range]:
 
 
 def chunk_markdown(
-    file_path: str, text: str, max_size: int = 2000
-) -> list[Chunk]:
+            file_path: str, text: str,
+            max_size: int = 2000) -> list[Chunk]:
     """Chunk one Markdown text; ``text`` must be exactly the file content."""
     if max_size <= 0:
         raise ValueError("max_size must be positive")
     fences = fence_ranges(text)
     starts = heading_starts(text, fences)
-    chunks: list[Chunk] = []
+    ranges: list[Range] = []
     for a, b in sections(text, starts):
-        for first, last in split_section(text, a, b, max_size):
-            chunks.append(
-                Chunk(
-                    file_path=file_path,
-                    first_character_index=first,
-                    last_character_index=last,
-                    text=text[first:last],
-                )
-            )
-    return chunks
+        ranges.extend(split_section(text, a, b, max_size))
+    return [
+        Chunk(
+            file_path=file_path,
+            first_character_index=a,
+            last_character_index=b,
+            text=text[a:b]
+        )
+        for a, b in ranges
+    ]
+
+# python chunking part
 
 
-def main() -> None:
-    """Demo: python md_chunker.py <file.md> [max_size]."""
-    path = sys.argv[1]
-    size = int(sys.argv[2]) if len(sys.argv) > 2 else 2000
-    with open(path, "r", encoding="utf-8", newline="") as file:
-        text = file.read()
-    for chunk in chunk_markdown(path, text, size):
-        print(chunk.text)
+DEFS = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
 
 
-if __name__ == "__main__":
-    main()
+def start_lines(node) -> int:
+    lines = [node.lineno] + [d.lineno for d in node.decorator_list]
+    return min(lines)
+
+
+def tile(text: str, ranges: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    starts = {a for a, _ in ranges}
+    bounds = sorted({0, len(text)} | starts)
+    return [(a, b) for a, b in zip(bounds, bounds[1:]) if a < b]
+
+
+def unit_ranges(text:str , starts: list[int]) -> list[tuple[int, int]]:
+    ranges = []
+    tree = ast.parse(text)
+    for node in tree.body:
+        if isinstance(node, DEFS):
+            end_line = node.end_lineno or node.lineno
+            first = starts[start_lines(node) - 1]
+            last = starts[end_line] if end_line < len(starts) else len(text)
+            ranges.append((first, last))
+    return ranges
+
+
+def line_starts(text: str) -> list[int]:
+    """Return the offset where each line begins."""
+    start = [0]
+    for i, char in enumerate(text):
+        if char == "\n":
+            start.append(i + 1)
+    return start
+
+
+def safe_units(text: str, starts: list[tuple[int, int]]) -> list | list[tuple[int, int]]:
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return unit_ranges(text, starts)
+    except (SyntaxError, ValueError, RecursionError):
+        return []
+
+
+def python_ranges(text: str, size: int) -> list[tuple[int, int]]:
+    starts = line_starts(text)
+    units = tile(text, unit_ranges(text, starts))
+    pieces = []
+    for a, b in units:
+        pieces.extend(split_section(text, a, b, size))
+    return pack(pieces, size)
+
+def chunk_python(file_path: str, text: str, size: int) -> list[Chunk]:
+    ranges = python_ranges(text, size)
+    return [
+        Chunk(
+            file_path=file_path,
+            first_character_index=a,
+            last_character_index=b,
+            text=text[a:b]
+        )
+        for a, b in ranges
+    ]

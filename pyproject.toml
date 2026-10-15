@@ -8,6 +8,8 @@ dependencies = [
     "fire>=0.7.1",
     "pydantic>=2.13.5",
     "tqdm>=4.70.1",
+    "huggingface",
+
 ]
 
 [dependency-groups]
@@ -15,3 +17,6 @@ dev = [
     "flake8>=7.4.1",
     "mypy>=2.4.0",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
