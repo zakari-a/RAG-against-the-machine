@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from src.chunker import python_ranges  # adjust to your module name
+from src.md_chunker import python_ranges  # adjust to your module name
 
 ROOT = Path("data/raw")
 SIZES = [200, 500, 1000, 2000]

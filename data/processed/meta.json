@@ -1,0 +1,9 @@
+{
+  "max_chunk_size": 2000,
+  "num_chunks": 14285,
+  "exstensions": [
+    ".md",
+    ".py",
+    ".txt"
+  ]
+}

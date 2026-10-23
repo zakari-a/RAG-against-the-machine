@@ -2,7 +2,8 @@ import re
 import tqdm
 from collections import Counter
 from pydantic import BaseModel
-from src.models.models import Chunk
+from src.models import Chunk
+import bm25s
 
 WORD_RE = re.compile(r"[A-Za-z0-9_]+")
 PART_RE = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+|[0-9]+")

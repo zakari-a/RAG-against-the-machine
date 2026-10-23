@@ -8,8 +8,9 @@ dependencies = [
     "fire>=0.7.1",
     "pydantic>=2.13.5",
     "tqdm>=4.70.1",
-    "huggingface",
-
+    "huggingface-hub>=2.2.0",
+    "rich>=15.0.0",
+    "bm25s>=0.3.14",
 ]
 
 [dependency-groups]

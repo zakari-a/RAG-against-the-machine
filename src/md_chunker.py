@@ -3,7 +3,7 @@ from typing import Tuple
 import ast
 import warnings
 
-from src.models.models import Chunk
+from src.models import Chunk
 
 Range = Tuple[int, int]
 
@@ -188,3 +188,25 @@ def chunk_python(file_path: str, text: str, size: int) -> list[Chunk]:
         )
         for a, b in ranges
     ]
+
+def chunk_text(file_path: str, text: str, size: int) -> list[Chunk]:
+    """Chunk plain text by blank lines, then lines, then size."""
+    if not text:
+        return []
+    ranges = split_section(text, 0, len(text), size)
+    return [
+        Chunk(file_path=file_path, first_character_index=a,
+              last_character_index=b, text=text[a:b])
+        for a, b in ranges
+    ]
+
+
+def chunk_file(file_path: str, text: str, size: int) -> list[Chunk]:
+    """Pick the chunker from the extension, like the indexer does."""
+    if file.path.endswith(".txt"):
+        return chunk_text(file_path, text, size)
+    if file_path.endswith(".py"):
+        return chunk_python(file_path, text, size)
+    if file_path.endswith(".md"):
+        return chunk_markdown(file_path, text, size)
+    return []
